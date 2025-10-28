@@ -1,0 +1,130 @@
+# Japanese translation for Smart CSV Importer
+# Copyright (C) 2025 Seiken TAKAMATSU (wapon Inc.)
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Smart CSV Importer 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wapon.co.jp/\n"
+"POT-Creation-Date: 2025-01-01 00:00+0000\n"
+"PO-Revision-Date: 2025-01-01 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Japanese\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Smart CSV Importer"
+msgstr "Smart CSV Importer"
+
+msgid "CSV Importer"
+msgstr "CSV Importer"
+
+msgid "CSVファイルで記事を簡単にインポート・エクスポート"
+msgstr "CSVファイルで記事を簡単にインポート・エクスポート"
+
+msgid "📥 CSVファイルをインポート"
+msgstr "📥 CSVファイルをインポート"
+
+msgid "CSVファイルをドラッグ&ドロップするか、クリックして選択してください"
+msgstr "CSVファイルをドラッグ&ドロップするか、クリックして選択してください"
+
+msgid "ファイルをここにドロップ"
+msgstr "ファイルをここにドロップ"
+
+msgid "または クリックしてファイルを選択"
+msgstr "または クリックしてファイルを選択"
+
+msgid "削除"
+msgstr "削除"
+
+msgid "インポート開始"
+msgstr "インポート開始"
+
+msgid "📋 CSVフォーマット"
+msgstr "📋 CSVフォーマット"
+
+msgid "以下の列をCSVファイルに含めてください："
+msgstr "以下の列をCSVファイルに含めてください："
+
+msgid "新規の場合は空白、編集の場合は記事IDを入れる"
+msgstr "新規の場合は空白、編集の場合は記事IDを入れる"
+
+msgid "記事のタイトル"
+msgstr "記事のタイトル"
+
+msgid "投稿のslug、空白の場合はタイトルがそのまま入る"
+msgstr "投稿のslug、空白の場合はタイトルがそのまま入る"
+
+msgid "投稿post、固定ページpage、カスタム投稿"
+msgstr "投稿post、固定ページpage、カスタム投稿"
+
+msgid "ページ属性 親、空白の場合は親なし"
+msgstr "ページ属性 親、空白の場合は親なし"
+
+msgid "ページ属性 順序、空白の場合は0"
+msgstr "ページ属性 順序、空白の場合は0"
+
+msgid "日付（未来も可能）、空白の場合はImport日時"
+msgstr "日付（未来も可能）、空白の場合はImport日時"
+
+msgid "公開の場合はpublish、空白の場合は下書き"
+msgstr "公開の場合はpublish、空白の場合は下書き"
+
+msgid "投稿のカテゴリー"
+msgstr "投稿のカテゴリー"
+
+msgid "投稿のタグ（,区切り）"
+msgstr "投稿のタグ（,区切り）"
+
+msgid "カスタムフィールド名"
+msgstr "カスタムフィールド名"
+
+msgid "カスタムフィールドの内容"
+msgstr "カスタムフィールドの内容"
+
+msgid "アイキャッチ画像のURL"
+msgstr "アイキャッチ画像のURL"
+
+msgid "記事の内容（HTML可能）"
+msgstr "記事の内容（HTML可能）"
+
+msgid "📥 サンプルCSVをダウンロード"
+msgstr "📥 サンプルCSVをダウンロード"
+
+msgid "📤 記事をCSVにエクスポート"
+msgstr "📤 記事をCSVにエクスポート"
+
+msgid "すべての記事をCSVファイルとしてダウンロードできます"
+msgstr "すべての記事をCSVファイルとしてダウンロードできます"
+
+msgid "CSVエクスポート"
+msgstr "CSVエクスポート"
+
+msgid "CSVをインポート中..."
+msgstr "CSVをインポート中..."
+
+msgid "しばらくお待ちください"
+msgstr "しばらくお待ちください"
+
+msgid "権限がありません。"
+msgstr "権限がありません。"
+
+msgid "不正なリクエストです。"
+msgstr "不正なリクエストです。"
+
+msgid "ファイルのアップロードに失敗しました。"
+msgstr "ファイルのアップロードに失敗しました。"
+
+msgid "CSVファイルが空か、形式が正しくありません。"
+msgstr "CSVファイルが空か、形式が正しくありません。"
+
+msgid "%d件の記事をインポートしました。"
+msgstr "%d件の記事をインポートしました。"
+
+msgid " (%d件を更新)"
+msgstr " (%d件を更新)"
+
+msgid "インポートに失敗しました。"
+msgstr "インポートに失敗しました。"
