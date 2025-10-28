@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: Simple CSV Importer
+ * Plugin Name: Smart CSV Importer
  * Plugin URI: https://wapon.co.jp/products/wp-plugin/simple-csv-importer
  * Description: CSVファイルから記事を一括インポートするプラグイン
  * Version: 1.0.0
  * Author: Seiken TAKAMATSU (wapon Inc.)
  * Author URI: https://wapon.co.jp/
  * License: GPL2
- * Text Domain: simple-csv-importer
+ * Text Domain: smart-csv-importer
  */
 
 // 直接アクセスを防止
@@ -16,21 +16,21 @@ if (!defined('ABSPATH')) {
 }
 
 // プラグインのメインクラス
-class Simple_CSV_Importer {
+class Smart_CSV_Importer {
 
     public function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
-        add_action('admin_post_simple_csv_import', array($this, 'handle_csv_import'));
-        add_action('admin_post_simple_csv_export', array($this, 'handle_csv_export'));
+        add_action('admin_post_smart_csv_import', array($this, 'handle_csv_import'));
+        add_action('admin_post_smart_csv_export', array($this, 'handle_csv_export'));
     }
 
     // 管理メニューに追加
     public function add_admin_menu() {
         add_menu_page(
-            'Simple CSV Importer',
+            'Smart CSV Importer',
             'CSV Importer',
             'manage_options',
-            'simple-csv-importer',
+            'smart-csv-importer',
             array($this, 'admin_page'),
             'dashicons-upload',
             20
@@ -41,7 +41,7 @@ class Simple_CSV_Importer {
     public function admin_page() {
         ?>
         <div class="wrap">
-            <h1>Simple CSV Importer</h1>
+            <h1>Smart CSV Importer</h1>
 
             <?php if (isset($_GET['success'])): ?>
                 <div class="notice notice-success is-dismissible">
@@ -58,8 +58,8 @@ class Simple_CSV_Importer {
             <div class="card" style="max-width: 800px; margin-top: 20px;">
                 <h2>CSVファイルをアップロード</h2>
                 <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="simple_csv_import">
-                    <?php wp_nonce_field('simple_csv_import_action', 'simple_csv_import_nonce'); ?>
+                    <input type="hidden" name="action" value="smart_csv_import">
+                    <?php wp_nonce_field('smart_csv_import_action', 'smart_csv_import_nonce'); ?>
 
                     <table class="form-table">
                         <tr>
@@ -102,8 +102,8 @@ class Simple_CSV_Importer {
                 <h2>記事をCSVにエクスポート</h2>
                 <p>すべての記事をCSVファイルとしてダウンロードできます。</p>
                 <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-                    <input type="hidden" name="action" value="simple_csv_export">
-                    <?php wp_nonce_field('simple_csv_export_action', 'simple_csv_export_nonce'); ?>
+                    <input type="hidden" name="action" value="smart_csv_export">
+                    <?php wp_nonce_field('smart_csv_export_action', 'smart_csv_export_nonce'); ?>
                     <?php submit_button('CSVエクスポート'); ?>
                 </form>
             </div>
@@ -119,13 +119,13 @@ class Simple_CSV_Importer {
         }
 
         // ノンスチェック
-        if (!isset($_POST['simple_csv_import_nonce']) || !wp_verify_nonce($_POST['simple_csv_import_nonce'], 'simple_csv_import_action')) {
+        if (!isset($_POST['smart_csv_import_nonce']) || !wp_verify_nonce($_POST['smart_csv_import_nonce'], 'smart_csv_import_action')) {
             wp_die('不正なリクエストです。');
         }
 
         // ファイルがアップロードされているかチェック
         if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
-            wp_redirect(add_query_arg('error', 'ファイルのアップロードに失敗しました。', admin_url('admin.php?page=simple-csv-importer')));
+            wp_redirect(add_query_arg('error', 'ファイルのアップロードに失敗しました。', admin_url('admin.php?page=smart-csv-importer')));
             exit;
         }
 
@@ -135,7 +135,7 @@ class Simple_CSV_Importer {
         $csv_data = $this->parse_csv($file);
 
         if (empty($csv_data)) {
-            wp_redirect(add_query_arg('error', 'CSVファイルが空か、形式が正しくありません。', admin_url('admin.php?page=simple-csv-importer')));
+            wp_redirect(add_query_arg('error', 'CSVファイルが空か、形式が正しくありません。', admin_url('admin.php?page=smart-csv-importer')));
             exit;
         }
 
@@ -147,9 +147,9 @@ class Simple_CSV_Importer {
             if ($result['updated'] > 0) {
                 $message .= sprintf(' (%d件を更新)', $result['updated']);
             }
-            wp_redirect(add_query_arg('success', $message, admin_url('admin.php?page=simple-csv-importer')));
+            wp_redirect(add_query_arg('success', $message, admin_url('admin.php?page=smart-csv-importer')));
         } else {
-            wp_redirect(add_query_arg('error', 'インポートに失敗しました。', admin_url('admin.php?page=simple-csv-importer')));
+            wp_redirect(add_query_arg('error', 'インポートに失敗しました。', admin_url('admin.php?page=smart-csv-importer')));
         }
         exit;
     }
@@ -333,7 +333,7 @@ class Simple_CSV_Importer {
         }
 
         // ノンスチェック
-        if (!isset($_POST['simple_csv_export_nonce']) || !wp_verify_nonce($_POST['simple_csv_export_nonce'], 'simple_csv_export_action')) {
+        if (!isset($_POST['smart_csv_export_nonce']) || !wp_verify_nonce($_POST['smart_csv_export_nonce'], 'smart_csv_export_action')) {
             wp_die('不正なリクエストです。');
         }
 
@@ -458,4 +458,4 @@ class Simple_CSV_Importer {
 }
 
 // プラグインを初期化
-new Simple_CSV_Importer();
+new Smart_CSV_Importer();
