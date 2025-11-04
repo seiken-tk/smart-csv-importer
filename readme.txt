@@ -4,7 +4,7 @@ Donate link: https://wapon.co.jp/
 Tags: csv, import, export, posts, bulk edit, importer
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 Requires PHP: 7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -124,6 +124,10 @@ Yes! Use `customfields-1-name`, `customfields-2-name`, etc. for field names and 
 
 == Changelog ==
 
+= 1.0.1 =
+* Show the number of imported and updated posts immediately after each import
+* Added UI styling to highlight the latest import results
+
 = 1.0.0 =
 * Initial release
 * CSV import functionality with drag & drop interface
@@ -138,6 +142,9 @@ Yes! Use `customfields-1-name`, `customfields-2-name`, etc. for field names and 
 * Secure with proper data sanitization and validation
 
 == Upgrade Notice ==
+
+= 1.0.1 =
+Displays the number of imported posts after every import run.
 
 = 1.0.0 =
 Initial release of Smart CSV Importer.

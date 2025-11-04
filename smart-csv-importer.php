@@ -3,7 +3,7 @@
  * Plugin Name:       Smart CSV Importer
  * Plugin URI:        https://wapon.co.jp/products/wp-plugin/smart-csv-importer
  * Description:       CSVファイルから記事を一括インポート・エクスポートするプラグイン
- * Version:           1.0.0
+ * Version:           1.0.1
  * Requires at least: 5.0
  * Requires PHP:      7.0
  * Author:            Seiken TAKAMATSU (wapon Inc.)
@@ -191,6 +191,36 @@ class Smart_CSV_Importer {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+            }
+
+            .import-result {
+                margin-top: 20px;
+                padding: 20px;
+                background: #eef2ff;
+                border-left: 4px solid #667eea;
+                border-radius: 12px;
+            }
+
+            .import-result-main {
+                display: flex;
+                align-items: baseline;
+                gap: 10px;
+            }
+
+            .import-result-number {
+                font-size: 2rem;
+                font-weight: 700;
+                color: #4338ca;
+            }
+
+            .import-result-label {
+                font-size: 1rem;
+                color: #374151;
+            }
+
+            .import-result-sub {
+                margin-top: 8px;
+                color: #6b7280;
             }
 
             .file-info {
@@ -622,6 +652,8 @@ class Smart_CSV_Importer {
 
     // 管理画面のページ
     public function admin_page() {
+        $imported_count = isset($_GET['imported']) ? absint($_GET['imported']) : null;
+        $updated_count = isset($_GET['updated']) ? absint($_GET['updated']) : null;
         ?>
         <div class="wrap smart-csv-container">
             <div class="smart-csv-header">
@@ -644,6 +676,25 @@ class Smart_CSV_Importer {
             <div class="smart-card">
                 <h2><?php echo esc_html__('📥 CSVファイルをインポート', 'smart-csv-importer'); ?></h2>
                 <p><?php echo esc_html__('CSVファイルをドラッグ&ドロップするか、クリックして選択してください', 'smart-csv-importer'); ?></p>
+
+                <?php if ($imported_count !== null): ?>
+                    <div class="import-result">
+                        <div class="import-result-main">
+                            <span class="import-result-number"><?php echo esc_html(number_format_i18n($imported_count)); ?></span>
+                            <span class="import-result-label"><?php echo esc_html__('件をインポートしました', 'smart-csv-importer'); ?></span>
+                        </div>
+                        <?php if ($updated_count !== null && $updated_count > 0): ?>
+                            <div class="import-result-sub">
+                                <?php
+                                printf(
+                                    esc_html__('うち%s件を更新しました', 'smart-csv-importer'),
+                                    esc_html(number_format_i18n($updated_count))
+                                );
+                                ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
 
                 <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" enctype="multipart/form-data" id="csv-import-form">
                     <input type="hidden" name="action" value="smart_csv_import">
@@ -766,7 +817,15 @@ class Smart_CSV_Importer {
             if ($result['updated'] > 0) {
                 $message .= sprintf(__(' (%d件を更新)', 'smart-csv-importer'), $result['updated']);
             }
-            wp_redirect(wp_nonce_url(add_query_arg('success', urlencode($message), admin_url('admin.php?page=smart-csv-importer'))));
+            $redirect_args = array(
+                'success'  => urlencode($message),
+                'imported' => max(0, (int) $result['count']),
+            );
+            if ($result['updated'] > 0) {
+                $redirect_args['updated'] = max(0, (int) $result['updated']);
+            }
+            $redirect_url = add_query_arg($redirect_args, admin_url('admin.php?page=smart-csv-importer'));
+            wp_redirect(wp_nonce_url($redirect_url));
         } else {
             wp_redirect(wp_nonce_url(add_query_arg('error', urlencode(__('インポートに失敗しました。', 'smart-csv-importer')), admin_url('admin.php?page=smart-csv-importer'))));
         }

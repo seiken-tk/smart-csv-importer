@@ -2,7 +2,7 @@
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Smart CSV Importer 1.0.0\n"
+"Project-Id-Version: Smart CSV Importer 1.0.1\n"
 "Report-Msgid-Bugs-To: https://wapon.co.jp/\n"
 "POT-Creation-Date: 2025-01-01 00:00+0000\n"
 "MIME-Version: 1.0\n"
@@ -35,6 +35,12 @@ msgid "削除"
 msgstr ""
 
 msgid "インポート開始"
+msgstr ""
+
+msgid "件をインポートしました"
+msgstr ""
+
+msgid "うち%s件を更新しました"
 msgstr ""
 
 msgid "📋 CSVフォーマット"
