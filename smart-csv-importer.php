@@ -809,7 +809,15 @@ class Smart_CSV_Importer {
 
         // ファイルがアップロードされているかチェック
         if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
-            wp_redirect(wp_nonce_url(add_query_arg('error', urlencode(__('ファイルのアップロードに失敗しました。', 'smart-csv-importer')), admin_url('admin.php?page=smart-csv-importer'))));
+            $upload_error = isset($_FILES['csv_file']['error']) ? $_FILES['csv_file']['error'] : -1;
+            if ($upload_error === UPLOAD_ERR_INI_SIZE || $upload_error === UPLOAD_ERR_FORM_SIZE) {
+                $max_size = ini_get('upload_max_filesize');
+                /* translators: %s: maximum upload file size (e.g. "2M"). */
+                $error_msg = sprintf(__('ファイルサイズが上限（%s）を超えています。サーバーの upload_max_filesize 設定を確認してください。', 'smart-csv-importer'), $max_size);
+            } else {
+                $error_msg = __('ファイルのアップロードに失敗しました。', 'smart-csv-importer');
+            }
+            wp_redirect(wp_nonce_url(add_query_arg('error', urlencode($error_msg), admin_url('admin.php?page=smart-csv-importer'))));
             exit;
         }
 
