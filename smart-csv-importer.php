@@ -652,20 +652,22 @@ class Smart_CSV_Importer {
 
     // 管理画面のページ
     public function admin_page() {
-        $imported_count = isset($_GET['imported']) ? absint($_GET['imported']) : null;
-        $updated_count = isset($_GET['updated']) ? absint($_GET['updated']) : null;
+        $imported_count = null;
+        $updated_count = null;
         $success_message = '';
-        if (isset($_GET['success'])) {
-            $success_raw = wp_unslash($_GET['success']);
-            if (!is_array($success_raw)) {
-                $success_message = sanitize_text_field($success_raw);
-            }
-        }
         $error_message = '';
-        if (isset($_GET['error'])) {
-            $error_raw = wp_unslash($_GET['error']);
-            if (!is_array($error_raw)) {
-                $error_message = sanitize_text_field($error_raw);
+
+        // transientからフラッシュメッセージを取得（取得後すぐに削除）
+        $transient_key = 'smart_csv_import_message_' . get_current_user_id();
+        $flash = get_transient($transient_key);
+        if ($flash) {
+            delete_transient($transient_key);
+            if (isset($flash['type']) && $flash['type'] === 'success') {
+                $success_message = isset($flash['message']) ? sanitize_text_field($flash['message']) : '';
+                $imported_count = isset($flash['imported']) ? absint($flash['imported']) : null;
+                $updated_count = isset($flash['updated']) ? absint($flash['updated']) : null;
+            } elseif (isset($flash['type']) && $flash['type'] === 'error') {
+                $error_message = isset($flash['message']) ? sanitize_text_field($flash['message']) : '';
             }
         }
         ?>
@@ -807,6 +809,8 @@ class Smart_CSV_Importer {
             wp_die(esc_html__('不正なリクエストです。', 'smart-csv-importer'));
         }
 
+        $redirect_url = admin_url('admin.php?page=smart-csv-importer');
+
         // ファイルがアップロードされているかチェック
         if (!isset($_FILES['csv_file']) || $_FILES['csv_file']['error'] !== UPLOAD_ERR_OK) {
             $upload_error = isset($_FILES['csv_file']['error']) ? $_FILES['csv_file']['error'] : -1;
@@ -817,7 +821,8 @@ class Smart_CSV_Importer {
             } else {
                 $error_msg = __('ファイルのアップロードに失敗しました。', 'smart-csv-importer');
             }
-            wp_redirect(wp_nonce_url(add_query_arg('error', urlencode($error_msg), admin_url('admin.php?page=smart-csv-importer'))));
+            set_transient('smart_csv_import_message_' . get_current_user_id(), array('type' => 'error', 'message' => $error_msg), 60);
+            wp_redirect($redirect_url);
             exit;
         }
 
@@ -826,7 +831,8 @@ class Smart_CSV_Importer {
         $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
 
         if ($file_ext !== 'csv') {
-            wp_redirect(wp_nonce_url(add_query_arg('error', urlencode(__('CSVファイルのみアップロード可能です。', 'smart-csv-importer')), admin_url('admin.php?page=smart-csv-importer'))));
+            set_transient('smart_csv_import_message_' . get_current_user_id(), array('type' => 'error', 'message' => __('CSVファイルのみアップロード可能です。', 'smart-csv-importer')), 60);
+            wp_redirect($redirect_url);
             exit;
         }
 
@@ -836,7 +842,8 @@ class Smart_CSV_Importer {
         $csv_data = $this->parse_csv($file);
 
         if (empty($csv_data)) {
-            wp_redirect(wp_nonce_url(add_query_arg('error', urlencode(__('CSVファイルが空か、形式が正しくありません。', 'smart-csv-importer')), admin_url('admin.php?page=smart-csv-importer'))));
+            set_transient('smart_csv_import_message_' . get_current_user_id(), array('type' => 'error', 'message' => __('CSVファイルが空か、形式が正しくありません。', 'smart-csv-importer')), 60);
+            wp_redirect($redirect_url);
             exit;
         }
 
@@ -850,18 +857,17 @@ class Smart_CSV_Importer {
                 /* translators: %d: number of posts updated during the import. */
                 $message .= sprintf(__(' (%d件を更新)', 'smart-csv-importer'), $result['updated']);
             }
-            $redirect_args = array(
-                'success'  => urlencode($message),
+            $data = array(
+                'type'     => 'success',
+                'message'  => $message,
                 'imported' => max(0, (int) $result['count']),
+                'updated'  => max(0, (int) $result['updated']),
             );
-            if ($result['updated'] > 0) {
-                $redirect_args['updated'] = max(0, (int) $result['updated']);
-            }
-            $redirect_url = add_query_arg($redirect_args, admin_url('admin.php?page=smart-csv-importer'));
-            wp_redirect(wp_nonce_url($redirect_url));
+            set_transient('smart_csv_import_message_' . get_current_user_id(), $data, 60);
         } else {
-            wp_redirect(wp_nonce_url(add_query_arg('error', urlencode(__('インポートに失敗しました。', 'smart-csv-importer')), admin_url('admin.php?page=smart-csv-importer'))));
+            set_transient('smart_csv_import_message_' . get_current_user_id(), array('type' => 'error', 'message' => __('インポートに失敗しました。', 'smart-csv-importer')), 60);
         }
+        wp_redirect($redirect_url);
         exit;
     }
 
