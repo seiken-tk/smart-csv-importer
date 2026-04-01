@@ -1198,7 +1198,7 @@ class Smart_CSV_Importer {
     // すべての記事を取得
     private function get_all_posts() {
         $args = array(
-            'post_type'      => get_post_types(array('public' => true)),
+            'post_type'      => array_diff(get_post_types(array('public' => true)), array('attachment')),
             'post_status'    => 'any',
             'posts_per_page' => -1,
             'orderby'        => 'ID',
