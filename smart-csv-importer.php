@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Smart CSV Importer
  * Plugin URI:        https://wapon.co.jp/products/wp-plugin/smart-csv-importer
- * Description:       CSVファイルから記事を一括インポート・エクスポートするプラグイン
+ * Description:       Import and export posts in bulk from CSV files with a drag-and-drop interface.
  * Version:           1.0.1
  * Requires at least: 5.0
  * Requires PHP:      7.0
@@ -654,6 +654,20 @@ class Smart_CSV_Importer {
     public function admin_page() {
         $imported_count = isset($_GET['imported']) ? absint($_GET['imported']) : null;
         $updated_count = isset($_GET['updated']) ? absint($_GET['updated']) : null;
+        $success_message = '';
+        if (isset($_GET['success'])) {
+            $success_raw = wp_unslash($_GET['success']);
+            if (!is_array($success_raw)) {
+                $success_message = sanitize_text_field($success_raw);
+            }
+        }
+        $error_message = '';
+        if (isset($_GET['error'])) {
+            $error_raw = wp_unslash($_GET['error']);
+            if (!is_array($error_raw)) {
+                $error_message = sanitize_text_field($error_raw);
+            }
+        }
         ?>
         <div class="wrap smart-csv-container">
             <div class="smart-csv-header">
@@ -661,15 +675,15 @@ class Smart_CSV_Importer {
                 <p><?php echo esc_html__('CSVファイルで記事を簡単にインポート・エクスポート', 'smart-csv-importer'); ?></p>
             </div>
 
-            <?php if (isset($_GET['success'])): ?>
+            <?php if ($success_message !== ''): ?>
                 <div class="notice notice-success is-dismissible">
-                    <p><?php echo esc_html($_GET['success']); ?></p>
+                    <p><?php echo esc_html($success_message); ?></p>
                 </div>
             <?php endif; ?>
 
-            <?php if (isset($_GET['error'])): ?>
+            <?php if ($error_message !== ''): ?>
                 <div class="notice notice-error is-dismissible">
-                    <p><?php echo esc_html($_GET['error']); ?></p>
+                    <p><?php echo esc_html($error_message); ?></p>
                 </div>
             <?php endif; ?>
 
@@ -686,8 +700,10 @@ class Smart_CSV_Importer {
                         <?php if ($updated_count !== null && $updated_count > 0): ?>
                             <div class="import-result-sub">
                                 <?php
+                                /* translators: %s: number of posts updated during the import. */
+                                $updated_message = esc_html__('うち%s件を更新しました', 'smart-csv-importer');
                                 printf(
-                                    esc_html__('うち%s件を更新しました', 'smart-csv-importer'),
+                                    esc_html($updated_message),
                                     esc_html(number_format_i18n($updated_count))
                                 );
                                 ?>
@@ -696,7 +712,7 @@ class Smart_CSV_Importer {
                     </div>
                 <?php endif; ?>
 
-                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" enctype="multipart/form-data" id="csv-import-form">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data" id="csv-import-form">
                     <input type="hidden" name="action" value="smart_csv_import">
                     <?php wp_nonce_field('smart_csv_import_action', 'smart_csv_import_nonce'); ?>
 
@@ -742,7 +758,7 @@ class Smart_CSV_Importer {
                         <li><strong>eyecatch</strong>: <?php echo esc_html__('アイキャッチ画像のURL', 'smart-csv-importer'); ?></li>
                         <li><strong>contents</strong>: <?php echo esc_html__('記事の内容（HTML可能）', 'smart-csv-importer'); ?></li>
                     </ul>
-                    <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" style="margin: 0;">
+                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin: 0;">
                         <input type="hidden" name="action" value="smart_csv_sample">
                         <?php wp_nonce_field('smart_csv_sample_action', 'smart_csv_sample_nonce'); ?>
                         <button type="submit" class="btn-download"><?php echo esc_html__('📥 サンプルCSVをダウンロード', 'smart-csv-importer'); ?></button>
@@ -753,7 +769,7 @@ class Smart_CSV_Importer {
             <div class="smart-card">
                 <h2><?php echo esc_html__('📤 記事をCSVにエクスポート', 'smart-csv-importer'); ?></h2>
                 <p><?php echo esc_html__('すべての記事をCSVファイルとしてダウンロードできます', 'smart-csv-importer'); ?></p>
-                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
                     <input type="hidden" name="action" value="smart_csv_export">
                     <?php wp_nonce_field('smart_csv_export_action', 'smart_csv_export_nonce'); ?>
                     <button type="submit" class="btn-secondary"><?php echo esc_html__('CSVエクスポート', 'smart-csv-importer'); ?></button>
@@ -776,12 +792,19 @@ class Smart_CSV_Importer {
     public function handle_csv_import() {
         // 権限チェック
         if (!current_user_can('manage_options')) {
-            wp_die(__('権限がありません。', 'smart-csv-importer'));
+            wp_die(esc_html__('権限がありません。', 'smart-csv-importer'));
         }
 
         // ノンスチェック
-        if (!isset($_POST['smart_csv_import_nonce']) || !wp_verify_nonce($_POST['smart_csv_import_nonce'], 'smart_csv_import_action')) {
-            wp_die(__('不正なリクエストです。', 'smart-csv-importer'));
+        $import_nonce = '';
+        if (isset($_POST['smart_csv_import_nonce'])) {
+            $nonce_raw = wp_unslash($_POST['smart_csv_import_nonce']);
+            if (!is_array($nonce_raw)) {
+                $import_nonce = sanitize_text_field($nonce_raw);
+            }
+        }
+        if (empty($import_nonce) || !wp_verify_nonce($import_nonce, 'smart_csv_import_action')) {
+            wp_die(esc_html__('不正なリクエストです。', 'smart-csv-importer'));
         }
 
         // ファイルがアップロードされているかチェック
@@ -813,8 +836,10 @@ class Smart_CSV_Importer {
         $result = $this->import_posts($csv_data);
 
         if ($result['success']) {
+            /* translators: %d: number of posts imported. */
             $message = sprintf(__('%d件の記事をインポートしました。', 'smart-csv-importer'), $result['count']);
             if ($result['updated'] > 0) {
+                /* translators: %d: number of posts updated during the import. */
                 $message .= sprintf(__(' (%d件を更新)', 'smart-csv-importer'), $result['updated']);
             }
             $redirect_args = array(
@@ -836,34 +861,57 @@ class Smart_CSV_Importer {
     private function parse_csv($file) {
         $csv_data = array();
 
-        // BOM付きUTF-8対応
-        $content = file_get_contents($file);
-        $content = preg_replace('/^\xEF\xBB\xBF/', '', $content);
-
-        // 一時ファイルに書き込み
-        $temp_file = tmpfile();
-        fwrite($temp_file, $content);
-        rewind($temp_file);
-
-        $headers = array();
-        $row_index = 0;
-
-        while (($row = fgetcsv($temp_file, 0, ',')) !== false) {
-            if ($row_index === 0) {
-                // ヘッダー行
-                $headers = $row;
-            } else {
-                // データ行
-                $data = array();
-                foreach ($headers as $index => $header) {
-                    $data[trim($header)] = isset($row[$index]) ? $row[$index] : '';
-                }
-                $csv_data[] = $data;
-            }
-            $row_index++;
+        if (!is_readable($file)) {
+            return $csv_data;
         }
 
-        fclose($temp_file);
+        try {
+            $csv_file = new SplFileObject($file);
+        } catch (RuntimeException $e) {
+            return $csv_data;
+        }
+
+        $csv_file->setFlags(SplFileObject::READ_CSV | SplFileObject::SKIP_EMPTY);
+        $csv_file->setCsvControl(',');
+
+        $headers = array();
+        foreach ($csv_file as $row_index => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            // SplFileObject may return [null] at EOF.
+            $is_empty_row = true;
+            foreach ($row as $value) {
+                if ($value !== null && $value !== '') {
+                    $is_empty_row = false;
+                    break;
+                }
+            }
+            if ($is_empty_row) {
+                continue;
+            }
+
+            if ($row_index === 0) {
+                if (isset($row[0])) {
+                    $row[0] = preg_replace('/^\xEF\xBB\xBF/', '', $row[0]);
+                }
+                $headers = array_map('trim', $row);
+                continue;
+            }
+
+            $data = array();
+            foreach ($headers as $index => $header) {
+                if ($header === null || $header === '') {
+                    continue;
+                }
+                $data[$header] = isset($row[$index]) ? $row[$index] : '';
+            }
+
+            if (!empty($data)) {
+                $csv_data[] = $data;
+            }
+        }
 
         return $csv_data;
     }
@@ -1007,22 +1055,32 @@ class Smart_CSV_Importer {
     public function handle_csv_export() {
         // 権限チェック
         if (!current_user_can('manage_options')) {
-            wp_die(__('権限がありません。', 'smart-csv-importer'));
+            wp_die(esc_html__('権限がありません。', 'smart-csv-importer'));
         }
 
         // ノンスチェック
-        if (!isset($_POST['smart_csv_export_nonce']) || !wp_verify_nonce($_POST['smart_csv_export_nonce'], 'smart_csv_export_action')) {
-            wp_die(__('不正なリクエストです。', 'smart-csv-importer'));
+        $export_nonce = '';
+        if (isset($_POST['smart_csv_export_nonce'])) {
+            $nonce_raw = wp_unslash($_POST['smart_csv_export_nonce']);
+            if (!is_array($nonce_raw)) {
+                $export_nonce = sanitize_text_field($nonce_raw);
+            }
+        }
+        if (empty($export_nonce) || !wp_verify_nonce($export_nonce, 'smart_csv_export_action')) {
+            wp_die(esc_html__('不正なリクエストです。', 'smart-csv-importer'));
         }
 
         // すべての記事を取得
         $posts = $this->get_all_posts();
 
         // CSVを生成
-        $csv_content = $this->generate_csv($posts);
+        $csv_stream = $this->generate_csv($posts);
+        if (!$csv_stream instanceof SplFileObject) {
+            wp_die(esc_html__('CSVの生成に失敗しました。', 'smart-csv-importer'));
+        }
 
         // CSVファイルとしてダウンロード
-        $filename = 'posts-export-' . date('Y-m-d-H-i-s') . '.csv';
+        $filename = 'posts-export-' . gmdate('Y-m-d-H-i-s') . '.csv';
 
         header('Content-Type: text/csv; charset=UTF-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -1031,7 +1089,8 @@ class Smart_CSV_Importer {
 
         // BOM付きUTF-8で出力（Excel対応）
         echo "\xEF\xBB\xBF";
-        echo $csv_content;
+        $csv_stream->rewind();
+        $csv_stream->fpassthru();
 
         exit;
     }
@@ -1040,16 +1099,28 @@ class Smart_CSV_Importer {
     public function handle_csv_sample() {
         // 権限チェック
         if (!current_user_can('manage_options')) {
-            wp_die(__('権限がありません。', 'smart-csv-importer'));
+            wp_die(esc_html__('権限がありません。', 'smart-csv-importer'));
         }
 
         // ノンスチェック
-        if (!isset($_POST['smart_csv_sample_nonce']) || !wp_verify_nonce($_POST['smart_csv_sample_nonce'], 'smart_csv_sample_action')) {
-            wp_die(__('不正なリクエストです。', 'smart-csv-importer'));
+        $sample_nonce = '';
+        if (isset($_POST['smart_csv_sample_nonce'])) {
+            $nonce_raw = wp_unslash($_POST['smart_csv_sample_nonce']);
+            if (!is_array($nonce_raw)) {
+                $sample_nonce = sanitize_text_field($nonce_raw);
+            }
+        }
+        if (empty($sample_nonce) || !wp_verify_nonce($sample_nonce, 'smart_csv_sample_action')) {
+            wp_die(esc_html__('不正なリクエストです。', 'smart-csv-importer'));
         }
 
         // サンプルCSVを生成
-        $output = fopen('php://temp', 'r+');
+        try {
+            $output = new SplTempFileObject();
+        } catch (RuntimeException $e) {
+            wp_die(esc_html__('CSVの生成に失敗しました。', 'smart-csv-importer'));
+        }
+        $output->setCsvControl(',');
 
         // ヘッダー行
         $headers = array(
@@ -1068,7 +1139,7 @@ class Smart_CSV_Importer {
             'eyecatch',
             'contents'
         );
-        fputcsv($output, $headers);
+        $output->fputcsv($headers);
 
         // サンプルデータ行1
         $sample_row1 = array(
@@ -1087,7 +1158,7 @@ class Smart_CSV_Importer {
             'https://example.com/image.jpg',  // eyecatch
             '<p>これはサンプル記事の本文です。</p><p>HTMLタグを使用できます。</p>'  // contents
         );
-        fputcsv($output, $sample_row1);
+        $output->fputcsv($sample_row1);
 
         // サンプルデータ行2
         $sample_row2 = array(
@@ -1106,11 +1177,7 @@ class Smart_CSV_Importer {
             '',  // eyecatch: 空白
             '<p>これはサンプルページの本文です。</p>'  // contents
         );
-        fputcsv($output, $sample_row2);
-
-        rewind($output);
-        $csv_content = stream_get_contents($output);
-        fclose($output);
+        $output->fputcsv($sample_row2);
 
         // CSVファイルとしてダウンロード
         $filename = 'sample-csv-importer.csv';
@@ -1122,7 +1189,8 @@ class Smart_CSV_Importer {
 
         // BOM付きUTF-8で出力（Excel対応）
         echo "\xEF\xBB\xBF";
-        echo $csv_content;
+        $output->rewind();
+        $output->fpassthru();
 
         exit;
     }
@@ -1130,7 +1198,7 @@ class Smart_CSV_Importer {
     // すべての記事を取得
     private function get_all_posts() {
         $args = array(
-            'post_type'      => 'any',
+            'post_type'      => array('post', 'page'),
             'post_status'    => 'any',
             'posts_per_page' => -1,
             'orderby'        => 'ID',
@@ -1142,7 +1210,13 @@ class Smart_CSV_Importer {
 
     // CSVを生成
     private function generate_csv($posts) {
-        $output = fopen('php://temp', 'r+');
+        try {
+            $output = new SplTempFileObject();
+        } catch (RuntimeException $e) {
+            return false;
+        }
+
+        $output->setCsvControl(',');
 
         // ヘッダー行
         $headers = array(
@@ -1161,7 +1235,7 @@ class Smart_CSV_Importer {
             'eyecatch',
             'contents'
         );
-        fputcsv($output, $headers);
+        $output->fputcsv($headers);
 
         // データ行
         foreach ($posts as $post) {
@@ -1215,14 +1289,12 @@ class Smart_CSV_Importer {
             // 記事内容
             $row[] = $post->post_content;
 
-            fputcsv($output, $row);
+            $output->fputcsv($row);
         }
 
-        rewind($output);
-        $csv_content = stream_get_contents($output);
-        fclose($output);
+        $output->rewind();
 
-        return $csv_content;
+        return $output;
     }
 }
 
