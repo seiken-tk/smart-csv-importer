@@ -295,6 +295,18 @@ class Smart_CSV_Importer {
                 transform: translateY(0);
             }
 
+            .btn-primary:disabled {
+                background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+                cursor: not-allowed;
+                box-shadow: none;
+                transform: none;
+            }
+
+            .btn-primary:disabled:hover {
+                transform: none;
+                box-shadow: none;
+            }
+
             .btn-secondary {
                 background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
                 color: white !important;
@@ -668,8 +680,15 @@ class Smart_CSV_Importer {
                         return false;
                     }
 
-                    // ボタンを無効化・プログレスバー表示
+                    // ボタンを無効化・テキスト変更・プログレスバー表示
                     submitBtn.prop('disabled', true);
+                    submitBtn.text('処理中');
+                    var dotCount = 0;
+                    var dotTimer = setInterval(function() {
+                        dotCount = (dotCount % 3) + 1;
+                        submitBtn.text('処理中' + '.'.repeat(dotCount));
+                    }, 500);
+                    submitBtn.data('dotTimer', dotTimer);
                     var progressEl = document.getElementById('batch-progress');
                     var barEl = document.getElementById('progress-bar');
                     var textEl = document.getElementById('progress-text');
@@ -694,13 +713,15 @@ class Smart_CSV_Importer {
                                 processBatch(response.batch_key, response.total, 0, 0, 0);
                             } else {
                                 progressEl.classList.remove('show');
-                                submitBtn.prop('disabled', false);
+                                clearInterval(submitBtn.data('dotTimer'));
+                                submitBtn.prop('disabled', false).text('インポート開始');
                                 alert(response.message || smartCsvImporter.error);
                             }
                         },
                         error: function() {
                             progressEl.classList.remove('show');
-                            submitBtn.prop('disabled', false);
+                            clearInterval(submitBtn.data('dotTimer'));
+                            submitBtn.prop('disabled', false).text('インポート開始');
                             alert(smartCsvImporter.error);
                         }
                     });
@@ -725,7 +746,8 @@ class Smart_CSV_Importer {
                         success: function(response) {
                             if (!response.success) {
                                 document.getElementById('batch-progress').classList.remove('show');
-                                submitBtn.prop('disabled', false);
+                                clearInterval(submitBtn.data('dotTimer'));
+                            submitBtn.prop('disabled', false).text('インポート開始');
                                 alert(response.data || smartCsvImporter.error);
                                 return;
                             }
@@ -739,6 +761,7 @@ class Smart_CSV_Importer {
                             textEl.innerHTML = '<span class=\"progress-detail\">' + processed + ' / ' + total + '</span> ' + smartCsvImporter.processing + ' (' + percent + '%)';
 
                             if (data.done) {
+                                clearInterval(submitBtn.data('dotTimer'));
                                 barEl.style.width = '100%';
                                 textEl.innerHTML = smartCsvImporter.completed + ' — <span class=\"progress-detail\">' + imported + '</span> ' + '件インポート' + (updated > 0 ? ' (' + updated + '件更新)' : '');
                                 // 結果をtransientに保存するAJAXを送信してからリダイレクト
@@ -760,7 +783,8 @@ class Smart_CSV_Importer {
                         },
                         error: function() {
                             document.getElementById('batch-progress').classList.remove('show');
-                            submitBtn.prop('disabled', false);
+                            clearInterval(submitBtn.data('dotTimer'));
+                            submitBtn.prop('disabled', false).text('インポート開始');
                             alert(smartCsvImporter.error);
                         }
                     });
