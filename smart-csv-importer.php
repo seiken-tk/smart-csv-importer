@@ -3,7 +3,7 @@
  * Plugin Name:       Smart CSV Importer
  * Plugin URI:        https://wapon.co.jp/products/wp-plugin/smart-csv-importer
  * Description:       Import and export posts in bulk from CSV files with a drag-and-drop interface.
- * Version:           1.0.1
+ * Version:           1.1.0
  * Requires at least: 5.0
  * Requires PHP:      7.0
  * Author:            Seiken TAKAMATSU (wapon Inc.)
@@ -28,6 +28,7 @@ class Smart_CSV_Importer {
         add_action('admin_post_smart_csv_export', array($this, 'handle_csv_export'));
         add_action('admin_post_smart_csv_sample', array($this, 'handle_csv_sample'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        add_action('wp_ajax_smart_csv_import_batch', array($this, 'ajax_import_batch'));
     }
 
     // CSS/JSファイルを読み込み
@@ -42,10 +43,15 @@ class Smart_CSV_Importer {
 
         // JavaScript用翻訳テキストをlocalize
         wp_localize_script('jquery', 'smartCsvImporter', array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'batchNonce' => wp_create_nonce('smart_csv_batch_nonce'),
             'importing' => __('CSVをインポート中...', 'smart-csv-importer'),
             'pleaseWait' => __('しばらくお待ちください', 'smart-csv-importer'),
             'dropFile' => __('ファイルをここにドロップ', 'smart-csv-importer'),
             'clickToSelect' => __('または クリックしてファイルを選択', 'smart-csv-importer'),
+            'processing' => __('処理中...', 'smart-csv-importer'),
+            'completed' => __('インポート完了', 'smart-csv-importer'),
+            'error' => __('エラーが発生しました', 'smart-csv-importer'),
         ));
 
         // インラインスクリプト
@@ -454,6 +460,42 @@ class Smart_CSV_Importer {
                 }
             }
 
+            .batch-progress {
+                display: none;
+                margin-top: 20px;
+            }
+
+            .batch-progress.show {
+                display: block;
+            }
+
+            .progress-bar-wrapper {
+                background: #e5e7eb;
+                border-radius: 10px;
+                overflow: hidden;
+                height: 24px;
+                margin-bottom: 12px;
+            }
+
+            .progress-bar {
+                height: 100%;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 10px;
+                transition: width 0.3s ease;
+                width: 0%;
+            }
+
+            .progress-text {
+                font-size: 0.95rem;
+                color: #4b5563;
+                text-align: center;
+            }
+
+            .progress-text .progress-detail {
+                font-weight: 600;
+                color: #1f2937;
+            }
+
             .loading-overlay {
                 position: fixed;
                 top: 0;
@@ -617,22 +659,112 @@ class Smart_CSV_Importer {
                 // 初期状態でボタン無効化
                 submitBtn.prop('disabled', true);
 
-                // フォーム送信時にローディング表示
+                // フォーム送信時にAJAXバッチ処理
                 $('#csv-import-form').on('submit', function(e) {
+                    e.preventDefault();
+
                     // ファイルが選択されているか確認
                     if (fileInput[0].files.length === 0) {
                         return false;
                     }
 
-                    // ローディングオーバーレイを表示
-                    $('#loading-overlay').addClass('show');
-
-                    // ボタンを無効化
+                    // ボタンを無効化・プログレスバー表示
                     submitBtn.prop('disabled', true);
+                    var $progress = $('#batch-progress');
+                    var $bar = $('#progress-bar');
+                    var $text = $('#progress-text');
+                    $progress.addClass('show');
+                    $bar.css('width', '0%');
+                    $text.html(smartCsvImporter.processing);
 
-                    // フォーム送信を続行
-                    return true;
+                    // まずCSVをアップロード（従来のフォーム送信をAJAXで行う）
+                    var formData = new FormData(this);
+                    formData.append('batch_mode', '1');
+
+                    $.ajax({
+                        url: $(this).attr('action'),
+                        type: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        dataType: 'json',
+                        success: function(response) {
+                            if (response.success) {
+                                // バッチ処理開始
+                                processBatch(response.batch_key, response.total, 0, 0, 0);
+                            } else {
+                                $progress.removeClass('show');
+                                submitBtn.prop('disabled', false);
+                                alert(response.message || smartCsvImporter.error);
+                            }
+                        },
+                        error: function() {
+                            $progress.removeClass('show');
+                            submitBtn.prop('disabled', false);
+                            alert(smartCsvImporter.error);
+                        }
+                    });
+
+                    return false;
                 });
+
+                function processBatch(batchKey, total, offset, imported, updated) {
+                    var $bar = $('#progress-bar');
+                    var $text = $('#progress-text');
+
+                    $.ajax({
+                        url: smartCsvImporter.ajaxUrl,
+                        type: 'POST',
+                        data: {
+                            action: 'smart_csv_import_batch',
+                            batch_key: batchKey,
+                            offset: offset,
+                            nonce: smartCsvImporter.batchNonce
+                        },
+                        dataType: 'json',
+                        success: function(response) {
+                            if (!response.success) {
+                                $('#batch-progress').removeClass('show');
+                                submitBtn.prop('disabled', false);
+                                alert(response.data || smartCsvImporter.error);
+                                return;
+                            }
+
+                            var data = response.data;
+                            imported += data.imported;
+                            updated += data.updated;
+                            var processed = data.next_offset;
+                            var percent = Math.round((processed / total) * 100);
+                            $bar.css('width', percent + '%');
+                            $text.html('<span class=\"progress-detail\">' + processed + ' / ' + total + '</span> ' + smartCsvImporter.processing + ' (' + percent + '%)');
+
+                            if (data.done) {
+                                $bar.css('width', '100%');
+                                $text.html(smartCsvImporter.completed + ' — <span class=\"progress-detail\">' + imported + '</span> ' + '件インポート' + (updated > 0 ? ' (' + updated + '件更新)' : ''));
+                                // 結果をtransientに保存するAJAXを送信してからリダイレクト
+                                $.post(smartCsvImporter.ajaxUrl, {
+                                    action: 'smart_csv_import_batch',
+                                    nonce: smartCsvImporter.batchNonce,
+                                    save_result: 1,
+                                    total_imported: imported,
+                                    total_updated: updated
+                                }, function() {
+                                    window.location.href = data.redirect_url;
+                                }).fail(function() {
+                                    window.location.href = data.redirect_url;
+                                });
+                            } else {
+                                // 次のバッチ
+                                processBatch(batchKey, total, data.next_offset, imported, updated);
+                            }
+                        },
+                        error: function() {
+                            $('#batch-progress').removeClass('show');
+                            submitBtn.prop('disabled', false);
+                            alert(smartCsvImporter.error);
+                        }
+                    });
+                }
             });
         ";
     }
@@ -739,6 +871,13 @@ class Smart_CSV_Importer {
                     </div>
 
                     <button type="submit" class="btn-primary" id="submit-import"><?php echo esc_html__('インポート開始', 'smart-csv-importer'); ?></button>
+
+                    <div class="batch-progress" id="batch-progress">
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar" id="progress-bar"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text"></div>
+                    </div>
                 </form>
 
                 <div class="format-section">
@@ -837,17 +976,32 @@ class Smart_CSV_Importer {
         }
 
         $file = $_FILES['csv_file']['tmp_name'];
+        $is_batch_mode = !empty($_POST['batch_mode']);
 
         // CSVファイルを読み込み
         $csv_data = $this->parse_csv($file);
 
         if (empty($csv_data)) {
+            if ($is_batch_mode) {
+                wp_send_json(array('success' => false, 'message' => __('CSVファイルが空か、形式が正しくありません。', 'smart-csv-importer')));
+            }
             set_transient('smart_csv_import_message_' . get_current_user_id(), array('type' => 'error', 'message' => __('CSVファイルが空か、形式が正しくありません。', 'smart-csv-importer')), 60);
             wp_redirect($redirect_url);
             exit;
         }
 
-        // データをインポート
+        if ($is_batch_mode) {
+            // バッチモード: CSVデータをtransientに保存してJSON返却
+            $batch_key = 'smart_csv_batch_' . get_current_user_id() . '_' . wp_rand();
+            set_transient($batch_key, $csv_data, 3600);
+            wp_send_json(array(
+                'success'   => true,
+                'batch_key' => $batch_key,
+                'total'     => count($csv_data),
+            ));
+        }
+
+        // 非バッチモード（フォールバック）
         $result = $this->import_posts($csv_data);
 
         if ($result['success']) {
@@ -1044,6 +1198,74 @@ class Smart_CSV_Importer {
             'count' => $count,
             'updated' => $updated
         );
+    }
+
+    // AJAXバッチインポート処理
+    public function ajax_import_batch() {
+        // 権限チェック
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(__('権限がありません。', 'smart-csv-importer'));
+        }
+
+        // ノンスチェック
+        $nonce = isset($_POST['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce'])) : '';
+        if (!wp_verify_nonce($nonce, 'smart_csv_batch_nonce')) {
+            wp_send_json_error(__('不正なリクエストです。', 'smart-csv-importer'));
+        }
+
+        // 結果保存リクエスト
+        if (!empty($_POST['save_result'])) {
+            $total_imported = isset($_POST['total_imported']) ? absint($_POST['total_imported']) : 0;
+            $total_updated = isset($_POST['total_updated']) ? absint($_POST['total_updated']) : 0;
+            /* translators: %d: number of posts imported. */
+            $message = sprintf(__('%d件の記事をインポートしました。', 'smart-csv-importer'), $total_imported);
+            if ($total_updated > 0) {
+                /* translators: %d: number of posts updated during the import. */
+                $message .= sprintf(__(' (%d件を更新)', 'smart-csv-importer'), $total_updated);
+            }
+            set_transient('smart_csv_import_message_' . get_current_user_id(), array(
+                'type'     => 'success',
+                'message'  => $message,
+                'imported' => $total_imported,
+                'updated'  => $total_updated,
+            ), 60);
+            wp_send_json_success();
+        }
+
+        $batch_key = isset($_POST['batch_key']) ? sanitize_text_field(wp_unslash($_POST['batch_key'])) : '';
+        $offset = isset($_POST['offset']) ? absint($_POST['offset']) : 0;
+        $batch_size = 10;
+
+        $csv_data = get_transient($batch_key);
+        if ($csv_data === false) {
+            wp_send_json_error(__('インポートデータが見つかりません。再度アップロードしてください。', 'smart-csv-importer'));
+        }
+
+        // 実行時間を延長
+        if (function_exists('set_time_limit')) {
+            set_time_limit(120);
+        }
+        wp_raise_memory_limit('admin');
+
+        $total = count($csv_data);
+        $batch = array_slice($csv_data, $offset, $batch_size);
+        $result = $this->import_posts($batch);
+
+        $next_offset = min($offset + $batch_size, $total);
+        $done = ($next_offset >= $total);
+
+        if ($done) {
+            // 完了時にtransientを削除し、結果メッセージを保存
+            delete_transient($batch_key);
+        }
+
+        wp_send_json_success(array(
+            'imported'     => max(0, (int) $result['count']),
+            'updated'      => max(0, (int) $result['updated']),
+            'next_offset'  => $next_offset,
+            'done'         => $done,
+            'redirect_url' => $done ? admin_url('admin.php?page=smart-csv-importer') : '',
+        ));
     }
 
     // URLからアイキャッチ画像を設定

@@ -1,15 +1,15 @@
 === Smart CSV Importer ===
 Contributors: wapon
 Donate link: https://wapon.co.jp/
-Tags: csv, import, export, posts, bulk edit, importer
+Tags: csv, import, export, posts, importer
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 Requires PHP: 7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Easily import and export WordPress posts via CSV files with a modern drag-and-drop interface. Supports custom fields, categories, tags, and featured images.
+Import and export WordPress posts via CSV with a drag-and-drop interface supporting custom fields, categories, tags, and featured images.
 
 == Description ==
 
@@ -124,6 +124,11 @@ Yes! Use `customfields-1-name`, `customfields-2-name`, etc. for field names and 
 
 == Changelog ==
 
+= 1.1.0 =
+* Large CSV files are now processed in batches via AJAX to prevent timeout and memory errors
+* Added progress bar showing real-time import progress
+* Increased memory and execution time limits during batch processing
+
 = 1.0.1 =
 * Show the number of imported and updated posts immediately after each import
 * Added UI styling to highlight the latest import results
@@ -142,6 +147,9 @@ Yes! Use `customfields-1-name`, `customfields-2-name`, etc. for field names and 
 * Secure with proper data sanitization and validation
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Large CSV imports are now processed in batches, preventing fatal errors on big files.
 
 = 1.0.1 =
 Displays the number of imported posts after every import run.
