@@ -670,12 +670,12 @@ class Smart_CSV_Importer {
 
                     // ボタンを無効化・プログレスバー表示
                     submitBtn.prop('disabled', true);
-                    var $progress = $('#batch-progress');
-                    var $bar = $('#progress-bar');
-                    var $text = $('#progress-text');
-                    $progress.addClass('show');
-                    $bar.css('width', '0%');
-                    $text.html(smartCsvImporter.processing);
+                    var progressEl = document.getElementById('batch-progress');
+                    var barEl = document.getElementById('progress-bar');
+                    var textEl = document.getElementById('progress-text');
+                    progressEl.classList.add('show');
+                    barEl.style.width = '0%';
+                    textEl.innerHTML = smartCsvImporter.processing;
 
                     // まずCSVをアップロード（従来のフォーム送信をAJAXで行う）
                     var formData = new FormData(this);
@@ -693,13 +693,13 @@ class Smart_CSV_Importer {
                                 // バッチ処理開始
                                 processBatch(response.batch_key, response.total, 0, 0, 0);
                             } else {
-                                $progress.removeClass('show');
+                                progressEl.classList.remove('show');
                                 submitBtn.prop('disabled', false);
                                 alert(response.message || smartCsvImporter.error);
                             }
                         },
                         error: function() {
-                            $progress.removeClass('show');
+                            progressEl.classList.remove('show');
                             submitBtn.prop('disabled', false);
                             alert(smartCsvImporter.error);
                         }
@@ -709,10 +709,10 @@ class Smart_CSV_Importer {
                 });
 
                 function processBatch(batchKey, total, offset, imported, updated) {
-                    var $bar = $('#progress-bar');
-                    var $text = $('#progress-text');
+                    var barEl = document.getElementById('progress-bar');
+                    var textEl = document.getElementById('progress-text');
 
-                    $.ajax({
+                    jQuery.ajax({
                         url: smartCsvImporter.ajaxUrl,
                         type: 'POST',
                         data: {
@@ -724,7 +724,7 @@ class Smart_CSV_Importer {
                         dataType: 'json',
                         success: function(response) {
                             if (!response.success) {
-                                $('#batch-progress').removeClass('show');
+                                document.getElementById('batch-progress').classList.remove('show');
                                 submitBtn.prop('disabled', false);
                                 alert(response.data || smartCsvImporter.error);
                                 return;
@@ -735,14 +735,14 @@ class Smart_CSV_Importer {
                             updated += data.updated;
                             var processed = data.next_offset;
                             var percent = Math.round((processed / total) * 100);
-                            $bar.css('width', percent + '%');
-                            $text.html('<span class=\"progress-detail\">' + processed + ' / ' + total + '</span> ' + smartCsvImporter.processing + ' (' + percent + '%)');
+                            barEl.style.width = percent + '%';
+                            textEl.innerHTML = '<span class=\"progress-detail\">' + processed + ' / ' + total + '</span> ' + smartCsvImporter.processing + ' (' + percent + '%)';
 
                             if (data.done) {
-                                $bar.css('width', '100%');
-                                $text.html(smartCsvImporter.completed + ' — <span class=\"progress-detail\">' + imported + '</span> ' + '件インポート' + (updated > 0 ? ' (' + updated + '件更新)' : ''));
+                                barEl.style.width = '100%';
+                                textEl.innerHTML = smartCsvImporter.completed + ' — <span class=\"progress-detail\">' + imported + '</span> ' + '件インポート' + (updated > 0 ? ' (' + updated + '件更新)' : '');
                                 // 結果をtransientに保存するAJAXを送信してからリダイレクト
-                                $.post(smartCsvImporter.ajaxUrl, {
+                                jQuery.post(smartCsvImporter.ajaxUrl, {
                                     action: 'smart_csv_import_batch',
                                     nonce: smartCsvImporter.batchNonce,
                                     save_result: 1,
@@ -759,7 +759,7 @@ class Smart_CSV_Importer {
                             }
                         },
                         error: function() {
-                            $('#batch-progress').removeClass('show');
+                            document.getElementById('batch-progress').classList.remove('show');
                             submitBtn.prop('disabled', false);
                             alert(smartCsvImporter.error);
                         }
