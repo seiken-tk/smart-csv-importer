@@ -1250,8 +1250,6 @@ class Smart_CSV_Importer {
             set_transient('smart_csv_import_message_' . get_current_user_id(), array(
                 'type'     => 'success',
                 'message'  => $message,
-                'imported' => $total_imported,
-                'updated'  => $total_updated,
             ), 60);
             wp_send_json_success();
         }
