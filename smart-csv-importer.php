@@ -921,6 +921,7 @@ class Smart_CSV_Importer {
                         <li><strong>customfields-1-name</strong>: <?php echo esc_html__('カスタムフィールド名', 'smart-csv-importer'); ?></li>
                         <li><strong>customfields-1-content</strong>: <?php echo esc_html__('カスタムフィールドの内容', 'smart-csv-importer'); ?></li>
                         <li><strong>eyecatch</strong>: <?php echo esc_html__('アイキャッチ画像のURL', 'smart-csv-importer'); ?></li>
+                        <li><strong>eyecatch_alt</strong>: <?php echo esc_html__('アイキャッチ画像の代替テキスト', 'smart-csv-importer'); ?></li>
                         <li><strong>contents</strong>: <?php echo esc_html__('記事の内容（HTML可能）', 'smart-csv-importer'); ?></li>
                     </ul>
                     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin: 0;">
@@ -1211,7 +1212,17 @@ class Smart_CSV_Importer {
 
             // アイキャッチ画像
             if (!empty($row['eyecatch'])) {
-                $this->set_featured_image($post_id, esc_url_raw($row['eyecatch']));
+                $attachment_id = $this->set_featured_image($post_id, esc_url_raw($row['eyecatch']));
+                // 代替テキストを設定
+                if ($attachment_id && isset($row['eyecatch_alt']) && $row['eyecatch_alt'] !== '') {
+                    update_post_meta($attachment_id, '_wp_attachment_image_alt', sanitize_text_field($row['eyecatch_alt']));
+                }
+            } elseif (isset($row['eyecatch_alt']) && $row['eyecatch_alt'] !== '') {
+                // 画像URLなしでも既存アイキャッチの代替テキストを更新
+                $thumbnail_id = get_post_thumbnail_id($post_id);
+                if ($thumbnail_id) {
+                    update_post_meta($thumbnail_id, '_wp_attachment_image_alt', sanitize_text_field($row['eyecatch_alt']));
+                }
             }
 
             $count++;
@@ -1306,7 +1317,7 @@ class Smart_CSV_Importer {
         // アイキャッチ画像として設定
         set_post_thumbnail($post_id, $attachment_id);
 
-        return true;
+        return $attachment_id;
     }
 
     // CSVエクスポート処理
@@ -1395,6 +1406,7 @@ class Smart_CSV_Importer {
             'customfields-1-name',
             'customfields-1-content',
             'eyecatch',
+            'eyecatch_alt',
             'contents'
         );
         $output->fputcsv($headers);
@@ -1414,6 +1426,7 @@ class Smart_CSV_Importer {
             'custom_field_1',  // customfields-1-name
             'カスタムフィールドの値',  // customfields-1-content
             'https://example.com/image.jpg',  // eyecatch
+            'サンプル画像の説明',  // eyecatch_alt
             '<p>これはサンプル記事の本文です。</p><p>HTMLタグを使用できます。</p>'  // contents
         );
         $output->fputcsv($sample_row1);
@@ -1433,6 +1446,7 @@ class Smart_CSV_Importer {
             'page_description',  // customfields-1-name
             'ページの説明文',  // customfields-1-content
             '',  // eyecatch: 空白
+            '',  // eyecatch_alt: 空白
             '<p>これはサンプルページの本文です。</p>'  // contents
         );
         $output->fputcsv($sample_row2);
@@ -1491,6 +1505,7 @@ class Smart_CSV_Importer {
             'customfields-1-name',
             'customfields-1-content',
             'eyecatch',
+            'eyecatch_alt',
             'contents'
         );
         $output->fputcsv($headers);
@@ -1539,10 +1554,13 @@ class Smart_CSV_Importer {
             // アイキャッチ画像
             $thumbnail_id = get_post_thumbnail_id($post->ID);
             $eyecatch_url = '';
+            $eyecatch_alt = '';
             if ($thumbnail_id) {
                 $eyecatch_url = wp_get_attachment_url($thumbnail_id);
+                $eyecatch_alt = get_post_meta($thumbnail_id, '_wp_attachment_image_alt', true);
             }
             $row[] = $eyecatch_url;
+            $row[] = $eyecatch_alt;
 
             // 記事内容
             $row[] = $post->post_content;

@@ -57,6 +57,7 @@ Smart CSV Importer is a powerful WordPress plugin that allows you to easily impo
 * customfields-N-name - カスタムフィールド名
 * customfields-N-content - カスタムフィールド値
 * eyecatch - アイキャッチ画像URL
+* eyecatch_alt - アイキャッチ画像の代替テキスト
 * contents - 記事本文
 
 == Installation ==
@@ -112,7 +113,7 @@ Yes! Specify the custom post type name in the `type` column.
 
 = How are featured images handled? =
 
-Provide the image URL in the `eyecatch` column. The plugin will automatically download the image and add it to your media library.
+Provide the image URL in the `eyecatch` column. The plugin will automatically download the image and add it to your media library. You can also set the alt text via the `eyecatch_alt` column.
 
 = How do I set categories and tags? =
 
