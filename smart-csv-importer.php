@@ -1303,6 +1303,28 @@ class Smart_CSV_Importer {
 
     // URLからアイキャッチ画像を設定
     private function set_featured_image($post_id, $image_url) {
+        // 既存のアイキャッチ画像と同じURLなら再ダウンロードをスキップ
+        $existing_thumbnail_id = get_post_thumbnail_id($post_id);
+        if ($existing_thumbnail_id) {
+            $existing_url = wp_get_attachment_url($existing_thumbnail_id);
+            if ($existing_url === $image_url) {
+                return $existing_thumbnail_id;
+            }
+        }
+
+        // メディアライブラリに同じURLから取得済みの画像があるか検索
+        $existing = get_posts(array(
+            'post_type'   => 'attachment',
+            'meta_key'    => '_source_url',
+            'meta_value'  => $image_url,
+            'numberposts' => 1,
+            'fields'      => 'ids',
+        ));
+        if (!empty($existing)) {
+            set_post_thumbnail($post_id, $existing[0]);
+            return $existing[0];
+        }
+
         require_once(ABSPATH . 'wp-admin/includes/media.php');
         require_once(ABSPATH . 'wp-admin/includes/file.php');
         require_once(ABSPATH . 'wp-admin/includes/image.php');
