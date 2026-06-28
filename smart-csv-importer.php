@@ -3,7 +3,7 @@
  * Plugin Name:       Smart CSV Importer
  * Plugin URI:        https://wapon.co.jp/products/wp-plugin/smart-csv-importer
  * Description:       Import and export posts in bulk from CSV files with a drag-and-drop interface.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Requires at least: 5.0
  * Requires PHP:      7.0
  * Author:            Seiken TAKAMATSU (wapon Inc.)
@@ -710,7 +710,7 @@ class Smart_CSV_Importer {
                         success: function(response) {
                             if (response.success) {
                                 // バッチ処理開始
-                                processBatch(response.batch_key, response.total, 0, 0, 0);
+                                processBatch(response.batch_key, response.total, 0, 0, 0, 0, 0);
                             } else {
                                 progressEl.classList.remove('show');
                                 clearInterval(submitBtn.data('dotTimer'));
@@ -729,7 +729,7 @@ class Smart_CSV_Importer {
                     return false;
                 });
 
-                function processBatch(batchKey, total, offset, imported, updated) {
+                function processBatch(batchKey, total, offset, imported, updated, trashed, deleted) {
                     var barEl = document.getElementById('progress-bar');
                     var textEl = document.getElementById('progress-text');
 
@@ -755,6 +755,8 @@ class Smart_CSV_Importer {
                             var data = response.data;
                             imported += data.imported;
                             updated += data.updated;
+                            trashed += data.trashed;
+                            deleted += data.deleted;
                             var processed = data.next_offset;
                             var percent = Math.round((processed / total) * 100);
                             barEl.style.width = percent + '%';
@@ -763,14 +765,16 @@ class Smart_CSV_Importer {
                             if (data.done) {
                                 clearInterval(submitBtn.data('dotTimer'));
                                 barEl.style.width = '100%';
-                                textEl.innerHTML = smartCsvImporter.completed + ' — <span class=\"progress-detail\">' + imported + '</span> ' + '件インポート' + (updated > 0 ? ' (' + updated + '件更新)' : '');
+                                textEl.innerHTML = smartCsvImporter.completed + ' — <span class=\"progress-detail\">' + imported + '</span> ' + '件インポート' + (updated > 0 ? ' (' + updated + '件更新)' : '') + (trashed > 0 ? ' (' + trashed + '件ゴミ箱)' : '') + (deleted > 0 ? ' (' + deleted + '件削除)' : '');
                                 // 結果をtransientに保存するAJAXを送信してからリダイレクト
                                 jQuery.post(smartCsvImporter.ajaxUrl, {
                                     action: 'smart_csv_import_batch',
                                     nonce: smartCsvImporter.batchNonce,
                                     save_result: 1,
                                     total_imported: imported,
-                                    total_updated: updated
+                                    total_updated: updated,
+                                    total_trashed: trashed,
+                                    total_deleted: deleted
                                 }, function() {
                                     window.location.href = data.redirect_url;
                                 }).fail(function() {
@@ -778,7 +782,7 @@ class Smart_CSV_Importer {
                                 });
                             } else {
                                 // 次のバッチ
-                                processBatch(batchKey, total, data.next_offset, imported, updated);
+                                processBatch(batchKey, total, data.next_offset, imported, updated, trashed, deleted);
                             }
                         },
                         error: function() {
@@ -915,7 +919,7 @@ class Smart_CSV_Importer {
                         <li><strong>parent</strong>: <?php echo esc_html__('ページ属性 親、空白の場合は親なし', 'smart-csv-importer'); ?></li>
                         <li><strong>order</strong>: <?php echo esc_html__('ページ属性 順序、空白の場合は0', 'smart-csv-importer'); ?></li>
                         <li><strong>date</strong>: <?php echo esc_html__('日付（未来も可能）、空白の場合はImport日時', 'smart-csv-importer'); ?></li>
-                        <li><strong>status</strong>: <?php echo esc_html__('公開の場合はpublish、空白の場合は下書き', 'smart-csv-importer'); ?></li>
+                        <li><strong>status</strong>: <?php echo esc_html__('公開の場合はpublish、空白の場合は下書き。trashでゴミ箱へ移動、deleteで完全削除（trash/deleteはpost_id必須）', 'smart-csv-importer'); ?></li>
                         <li><strong>category</strong>: <?php echo esc_html__('投稿のカテゴリー', 'smart-csv-importer'); ?></li>
                         <li><strong>tags</strong>: <?php echo esc_html__('投稿のタグ（,区切り）', 'smart-csv-importer'); ?></li>
                         <li><strong>customfields-1-name</strong>: <?php echo esc_html__('カスタムフィールド名', 'smart-csv-importer'); ?></li>
@@ -1113,8 +1117,36 @@ class Smart_CSV_Importer {
     private function import_posts($csv_data) {
         $count = 0;
         $updated = 0;
+        $trashed = 0;
+        $deleted = 0;
 
         foreach ($csv_data as $row) {
+            $status = !empty($row['status']) ? sanitize_key($row['status']) : '';
+
+            // 削除処理（status が trash または delete）
+            if ($status === 'trash' || $status === 'delete') {
+                // 誤削除防止のため post_id 必須。存在しない行はスキップ
+                if (empty($row['post_id'])) {
+                    continue;
+                }
+                $delete_id = intval($row['post_id']);
+                if ($delete_id <= 0 || !get_post($delete_id)) {
+                    continue;
+                }
+                if ($status === 'delete') {
+                    // ゴミ箱を経由せず完全削除
+                    if (wp_delete_post($delete_id, true)) {
+                        $deleted++;
+                    }
+                } else {
+                    // ゴミ箱へ移動
+                    if (wp_trash_post($delete_id)) {
+                        $trashed++;
+                    }
+                }
+                continue;
+            }
+
             // 空の行はスキップ
             if (empty($row['title'])) {
                 continue;
@@ -1124,7 +1156,7 @@ class Smart_CSV_Importer {
             $post_data = array(
                 'post_title'   => sanitize_text_field($row['title']),
                 'post_content' => wp_kses_post(isset($row['contents']) ? $row['contents'] : ''),
-                'post_status'  => !empty($row['status']) ? sanitize_key($row['status']) : 'draft',
+                'post_status'  => $status !== '' ? $status : 'draft',
                 'post_type'    => !empty($row['type']) ? sanitize_key($row['type']) : 'post',
             );
 
@@ -1231,7 +1263,9 @@ class Smart_CSV_Importer {
         return array(
             'success' => true,
             'count' => $count,
-            'updated' => $updated
+            'updated' => $updated,
+            'trashed' => $trashed,
+            'deleted' => $deleted
         );
     }
 
@@ -1252,11 +1286,21 @@ class Smart_CSV_Importer {
         if (!empty($_POST['save_result'])) {
             $total_imported = isset($_POST['total_imported']) ? absint($_POST['total_imported']) : 0;
             $total_updated = isset($_POST['total_updated']) ? absint($_POST['total_updated']) : 0;
+            $total_trashed = isset($_POST['total_trashed']) ? absint($_POST['total_trashed']) : 0;
+            $total_deleted = isset($_POST['total_deleted']) ? absint($_POST['total_deleted']) : 0;
             /* translators: %d: number of posts imported. */
             $message = sprintf(__('%d件の記事をインポートしました。', 'smart-csv-importer'), $total_imported);
             if ($total_updated > 0) {
                 /* translators: %d: number of posts updated during the import. */
                 $message .= sprintf(__(' (%d件を更新)', 'smart-csv-importer'), $total_updated);
+            }
+            if ($total_trashed > 0) {
+                /* translators: %d: number of posts moved to trash. */
+                $message .= sprintf(__(' (%d件をゴミ箱へ移動)', 'smart-csv-importer'), $total_trashed);
+            }
+            if ($total_deleted > 0) {
+                /* translators: %d: number of posts permanently deleted. */
+                $message .= sprintf(__(' (%d件を完全削除)', 'smart-csv-importer'), $total_deleted);
             }
             set_transient('smart_csv_import_message_' . get_current_user_id(), array(
                 'type'     => 'success',
@@ -1295,6 +1339,8 @@ class Smart_CSV_Importer {
         wp_send_json_success(array(
             'imported'     => max(0, (int) $result['count']),
             'updated'      => max(0, (int) $result['updated']),
+            'trashed'      => max(0, (int) $result['trashed']),
+            'deleted'      => max(0, (int) $result['deleted']),
             'next_offset'  => $next_offset,
             'done'         => $done,
             'redirect_url' => $done ? admin_url('admin.php?page=smart-csv-importer') : '',
